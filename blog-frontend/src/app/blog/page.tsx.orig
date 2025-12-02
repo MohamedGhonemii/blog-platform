@@ -1,0 +1,126 @@
+import { getPublishedPosts, getCategories, Category, ApiResponse, BlogPost } from '@/lib/api'
+import BlogCard from '@/components/BlogCard'
+import NoPostsMessage from '@/components/NoPostsMessage'
+import RefreshButton from '@/components/RefreshButton'
+import SearchBar from '@/components/SearchBar'
+import CategoryFilter from '@/components/CategoryFilter'
+import Pagination from '@/components/Pagination'
+
+// IMPORTANT: Make this page dynamic, not static
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
+interface BlogPageProps {
+  searchParams: Promise<{
+    q?: string;
+    category?: string;
+    page?: string;
+  }>
+}
+
+export default async function BlogPage({ searchParams }: BlogPageProps) {
+  // Await searchParams in Next.js 16
+  const params = await searchParams;
+  const searchQuery = params?.q || '';
+  const categorySlug = params?.category || '';
+  const currentPage = parseInt(params?.page || '1');
+  const pageSize = 6; // Show 6 posts per page
+
+  console.log('📊 Page params:', { searchQuery, categorySlug, currentPage, pageSize });
+
+  // Fetch data in parallel
+  const [postsResponse, categoriesResponse] = await Promise.all([
+    getPublishedPosts(searchQuery, categorySlug, currentPage, pageSize),
+    getCategories()
+  ]);
+
+  console.log('📦 Posts response received:', postsResponse);
+
+  // Extract categories from results array
+  const categoriesData = categoriesResponse as any;
+  const categories: Category[] = Array.isArray(categoriesData) 
+    ? categoriesData 
+    : Array.isArray(categoriesData?.results) 
+      ? categoriesData.results 
+      : [];
+
+  const fetchTime = new Date().toLocaleTimeString()
+
+  // Get active category name
+  const activeCategory = categories.find((cat: Category) => cat.slug === categorySlug);
+
+  // Calculate total pages
+  const totalPages = Math.ceil(postsResponse.count / pageSize);
+
+  return (
+    <div className="container mx-auto px-4 py-12">
+      {/* Page Header */}
+      <div className="mb-12">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
+          <div>
+            <h1 className="text-4xl font-bold text-gray-900">
+              {searchQuery
+                ? `Search: "${searchQuery}"`
+                : activeCategory
+                  ? `${activeCategory.name} Articles`
+                  : 'Latest Articles'
+              }
+            </h1>
+            <div className="mt-2 inline-flex items-center gap-2">
+              <span className="text-sm text-gray-600">
+                Showing {postsResponse.results.length} of {postsResponse.count} articles
+              </span>
+              <span className="text-sm text-gray-400">•</span>
+              <span className="text-sm text-gray-600">
+                Page {currentPage} of {totalPages}
+              </span>
+              <span className="text-sm text-gray-400">•</span>
+              <span className="text-sm text-gray-600">
+                Fetched at: {fetchTime}
+              </span>
+            </div>
+          </div>
+          <RefreshButton />
+        </div>
+
+        {/* Search and Filter Section */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="md:col-span-2">
+            <SearchBar />
+          </div>
+          <div>
+            <CategoryFilter 
+              categories={categories}
+              activeCategory={activeCategory?.slug}
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Posts Grid */}
+      {postsResponse.results.length > 0 ? (
+        <>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {postsResponse.results.map((post: BlogPost) => (
+              <BlogCard key={post.id} post={post} />
+            ))}
+          </div>
+          
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <Pagination 
+              currentPage={currentPage}
+              totalPages={totalPages}
+              totalItems={postsResponse.count}
+              pageSize={pageSize}
+              searchQuery={searchQuery}
+              categorySlug={categorySlug}
+            />
+          )}
+        </>
+      ) : (
+        <NoPostsMessage />
+      )}
+    </div>
+  );
+}

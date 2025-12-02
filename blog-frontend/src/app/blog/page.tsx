@@ -1,0 +1,130 @@
+import { getPublishedPosts, getCategories, Category, ApiResponse, BlogPost } from '@/lib/api'
+import BlogCard from '@/components/BlogCard'
+import NoPostsMessage from '@/components/NoPostsMessage'
+import RefreshButton from '@/components/RefreshButton'
+import SearchBar from '@/components/SearchBar'
+import CategoryFilter from '@/components/CategoryFilter'
+
+// IMPORTANT: Make this page dynamic, not static
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
+interface BlogPageProps {
+  searchParams: Promise<{
+    q?: string;
+    category?: string;
+  }>
+}
+
+export default async function BlogPage({ searchParams }: BlogPageProps) {
+  // Await searchParams in Next.js 16
+  const params = await searchParams;
+  const searchQuery = params?.q || '';
+  const categorySlug = params?.category || '';
+
+  console.log('📊 Page params:', { searchQuery, categorySlug });
+
+  try {
+    // Fetch data in parallel
+    const [postsResponse, categoriesResponse] = await Promise.all([
+      getPublishedPosts(searchQuery, categorySlug),
+      getCategories()
+    ]);
+
+    console.log('📦 Posts response received:', postsResponse);
+
+    // Extract categories from results array
+    const categoriesData = categoriesResponse as any;
+    const categories: Category[] = Array.isArray(categoriesData) 
+      ? categoriesData 
+      : Array.isArray(categoriesData?.results) 
+        ? categoriesData.results 
+        : [];
+
+    const fetchTime = new Date().toLocaleTimeString()
+
+    // Get active category name
+    const activeCategory = categories.find((cat: Category) => cat.slug === categorySlug);
+
+    return (
+      <div className="container mx-auto px-4 py-12">
+        {/* Page Header */}
+        <div className="mb-12">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
+            <div>
+              <h1 className="text-4xl font-bold text-gray-900">
+                {searchQuery
+                  ? `Search: "${searchQuery}"`
+                  : activeCategory
+                    ? `${activeCategory.name} Articles`
+                    : 'Latest Articles'
+                }
+              </h1>
+              <div className="mt-2 inline-flex items-center gap-2">
+                <span className="text-sm text-gray-600">
+                  Showing {postsResponse.results.length} articles
+                </span>
+                <span className="text-sm text-gray-400">•</span>
+                <span className="text-sm text-gray-600">
+                  Fetched at: {fetchTime}
+                </span>
+              </div>
+            </div>
+            <RefreshButton />
+          </div>
+
+          {/* Search and Filter Section */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="md:col-span-2">
+              <SearchBar />
+            </div>
+            <div>
+              <CategoryFilter 
+                categories={categories}
+                activeCategory={activeCategory?.slug}
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Posts Grid */}
+        {postsResponse.results.length > 0 ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {postsResponse.results.map((post: BlogPost) => (
+              <BlogCard key={post.id} post={post} />
+            ))}
+          </div>
+        ) : (
+          <NoPostsMessage 
+            query={searchQuery}
+            category={activeCategory?.name}
+          />
+        )}
+      </div>
+    );
+  } catch (error) {
+    console.error('Error rendering blog page:', error);
+    
+    return (
+      <div className="container mx-auto px-4 py-12">
+        <div className="text-center">
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-red-100 mb-6">
+            <svg className="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.732-.833-2.502 0L4.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+            </svg>
+          </div>
+          <h3 className="text-xl font-semibold text-gray-900 mb-2">Error Loading Articles</h3>
+          <p className="text-gray-600 mb-8">
+            We're having trouble loading the articles. Please try again later.
+          </p>
+          <a
+            href="/blog"
+            className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700"
+          >
+            Try Again
+          </a>
+        </div>
+      </div>
+    );
+  }
+}

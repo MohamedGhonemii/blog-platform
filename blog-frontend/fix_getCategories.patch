@@ -1,0 +1,31 @@
+--- src/lib/api.ts.backup
++++ src/lib/api.ts
+@@ -71,7 +71,7 @@
+ 
+ export async function getCategories(): Promise<Category[]> {
+   try {
+-    const apiUrl = `${API_BASE_URL}/api/categories/`;
++    const apiUrl = `${API_BASE_URL}/api/categories/?limit=100`;
+     console.log('📡 Fetching categories from:', apiUrl);
+ 
+     const response = await fetch(apiUrl, {
+@@ -86,12 +86,16 @@
+         { id: 2, name: "Web Development", slug: "web-development", description: "Web development tutorials and guides" },
+         { id: 3, name: "Design", slug: "design", description: "UI/UX design principles and inspiration" }
+       ];
+     }
+ 
+-    const categories = await response.json();
+-    console.log(`✅ Fetched ${categories.length} categories`);
+-    return categories;
++    const data = await response.json();
++    // Extract results array from paginated response
++    const categories = data.results || data;
++    console.log(`✅ Fetched ${categories.length} categories`);
++    console.log('API response structure:', { data, categories });
++    
++    return categories;
+   } catch (error) {
+     console.error('Error fetching categories:', error);
+     return [];
+   }

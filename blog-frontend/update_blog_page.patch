@@ -1,0 +1,16 @@
+--- src/app/blog/page.tsx
++++ src/app/blog/page.tsx
+@@ -108,12 +108,7 @@
+           
+           {/* Pagination */}
+           {totalPages > 1 && (
+-            <Pagination 
+-              currentPage={currentPage}
+-              totalPages={totalPages}
+-              totalItems={postsResponse.count}
+-              pageSize={pageSize}
+-            />
++            <Pagination />
+           )}
+         </>
+       ) : (
