@@ -5,7 +5,6 @@ import RefreshButton from '@/components/RefreshButton'
 import SearchBar from '@/components/SearchBar'
 import CategoryFilter from '@/components/CategoryFilter'
 
-// IMPORTANT: Make this page dynamic, not static
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
@@ -17,23 +16,16 @@ interface BlogPageProps {
 }
 
 export default async function BlogPage({ searchParams }: BlogPageProps) {
-  // Await searchParams in Next.js 16
   const params = await searchParams;
   const searchQuery = params?.q || '';
   const categorySlug = params?.category || '';
 
-  console.log('📊 Page params:', { searchQuery, categorySlug });
-
   try {
-    // Fetch data in parallel
     const [postsResponse, categoriesResponse] = await Promise.all([
       getPublishedPosts(searchQuery, categorySlug),
       getCategories()
     ]);
 
-    console.log('📦 Posts response received:', postsResponse);
-
-    // Extract categories from results array
     const categoriesData = categoriesResponse as any;
     const categories: Category[] = Array.isArray(categoriesData) 
       ? categoriesData 
@@ -41,14 +33,10 @@ export default async function BlogPage({ searchParams }: BlogPageProps) {
         ? categoriesData.results 
         : [];
 
-    const fetchTime = new Date().toLocaleTimeString()
-
-    // Get active category name
     const activeCategory = categories.find((cat: Category) => cat.slug === categorySlug);
 
     return (
       <div className="container mx-auto px-4 py-12">
-        {/* Page Header */}
         <div className="mb-12">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
             <div>
@@ -62,18 +50,13 @@ export default async function BlogPage({ searchParams }: BlogPageProps) {
               </h1>
               <div className="mt-2 inline-flex items-center gap-2">
                 <span className="text-sm text-gray-600">
-                  Showing {postsResponse.results.length} articles
-                </span>
-                <span className="text-sm text-gray-400">•</span>
-                <span className="text-sm text-gray-600">
-                  Fetched at: {fetchTime}
+                  Showing {postsResponse.results.length} of {postsResponse.count} articles
                 </span>
               </div>
             </div>
             <RefreshButton />
           </div>
 
-          {/* Search and Filter Section */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="md:col-span-2">
               <SearchBar />
@@ -87,7 +70,6 @@ export default async function BlogPage({ searchParams }: BlogPageProps) {
           </div>
         </div>
 
-        {/* Posts Grid */}
         {postsResponse.results.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {postsResponse.results.map((post: BlogPost) => (
@@ -103,8 +85,6 @@ export default async function BlogPage({ searchParams }: BlogPageProps) {
       </div>
     );
   } catch (error) {
-    console.error('Error rendering blog page:', error);
-    
     return (
       <div className="container mx-auto px-4 py-12">
         <div className="text-center">
